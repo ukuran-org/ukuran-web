@@ -1,0 +1,41 @@
+/*
+ * The logo width drives the whole hero. The logo keeps the 1.3424 aspect
+ * ratio of its viewBox and the wordmark scales with it.
+ */
+.hero {
+  --logo-width: clamp(220px, 42vw, 520px);
+  --logo-height: calc(var(--logo-width) / 1.3424);
+}
+
+.banner {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  padding-top: calc(var(--logo-height) * 0.45);
+  padding-bottom: 20px;
+}
+
+/* A static floor of light grey grid lines that recedes towards the horizon. */
+.floor {
+  position: absolute;
+  inset: 0;
+  perspective: 360px;
+  perspective-origin: 50% 15%;
+}
+
+.grid {
+  position: absolute;
+  left: -150%;
+  right: -150%;
+  bottom: 0;
+  height: 300%;
+  transform-origin: 50% 100%;
+  transform: rotateX(68deg);
+  background-image:
+    linear-gradient(to right, #d4d4d4 1px, transparent 1px),
+    linear-gradient(to bottom, #d4d4d4 1px, transparent 1px);
+  background-size: 72px 72px;
+  background-position: center bottom;
+  mask-image: linear-gradient(to top, #000 0%, #000 20%, transparent 60%);
+}

@@ -13,7 +13,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: repositoryRoot,
     rules: {
+      // Renaming the output to `*.css` would turn CSS modules into global
+      // stylesheets, so they skip the Tailwind loader.
       "*.css": {
+        condition: { not: { path: /\.module\.css$/ } },
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },

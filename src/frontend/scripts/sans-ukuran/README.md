@@ -1,7 +1,7 @@
 # Sans Ukuran
 
-Build tooling for **Sans Ukuran**, the heavy display face used for the Ukuran
-wordmark and headings. Every glyph is a set of straight-edged polygons defined
+Build tooling for **Sans Ukuran**, the heavy display face reserved for the
+UKURAN wordmark. Every glyph is a set of straight-edged polygons defined
 in code, so the font follows the angular geometry of the logo.
 
 ## Rebuild

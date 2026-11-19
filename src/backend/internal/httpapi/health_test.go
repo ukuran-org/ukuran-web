@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -67,6 +68,9 @@ func TestHealth(t *testing.T) {
 			if got := rec.Header().Get("Content-Type"); got != "application/json" {
 				t.Errorf("Content-Type = %q, want application/json", got)
 			}
+			if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+				t.Errorf("Cache-Control = %q, want no-store", got)
+			}
 			var body healthResponse
 			if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 				t.Fatalf("decode body: %v", err)
@@ -89,6 +93,18 @@ func TestHealthRejectsOtherMethods(t *testing.T) {
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
+	}
+}
+
+func TestHealthLogsFailedPings(t *testing.T) {
+	var logs bytes.Buffer
+	handler := NewHandler(slog.New(slog.NewJSONHandler(&logs, nil)), &fakePinger{err: errors.New("connection refused")})
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	if !bytes.Contains(logs.Bytes(), []byte(`"msg":"health check failed"`)) ||
+		!bytes.Contains(logs.Bytes(), []byte(`"error":"connection refused"`)) {
+		t.Errorf("logs do not record the failed ping: %s", logs.String())
 	}
 }
 

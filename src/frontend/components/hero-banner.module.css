@@ -39,3 +39,33 @@
   background-position: center bottom;
   mask-image: linear-gradient(to top, #000 0%, #000 20%, transparent 60%);
 }
+
+.logo {
+  position: relative;
+  z-index: 1;
+  width: var(--logo-width);
+  animation: levitate 5s ease-in-out infinite;
+}
+
+.logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@keyframes levitate {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo {
+    animation: none;
+  }
+}

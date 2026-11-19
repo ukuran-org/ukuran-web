@@ -1,3 +1,5 @@
+import Image from "next/image";
+import logo from "../../../assets/logo.svg";
 import styles from "./hero-banner.module.css";
 
 export default function HeroBanner() {
@@ -6,6 +8,9 @@ export default function HeroBanner() {
       <div className={styles.banner}>
         <div className={styles.floor} aria-hidden="true">
           <div className={styles.grid} />
+        </div>
+        <div className={styles.logo}>
+          <Image src={logo} alt="" preload sizes="520px" />
         </div>
       </div>
     </header>

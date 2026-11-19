@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://localhost:3000";
+// Set PORT to test against a server on another port, for example when port
+// 3000 is already taken by a different checkout.
+const port = Number(process.env.PORT ?? 3000);
+const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -21,7 +24,7 @@ export default defineConfig({
   ],
   // CI builds the app before this runs, so a local run needs `npm run build` first.
   webServer: {
-    command: "npm run start",
+    command: `npm run start -- --port ${port}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

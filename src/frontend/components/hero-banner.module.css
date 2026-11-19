@@ -12,7 +12,7 @@
   overflow: hidden;
   display: flex;
   justify-content: center;
-  padding-top: calc(var(--logo-height) * 0.45);
+  padding-top: calc(var(--logo-height) * 0.12);
   padding-bottom: 20px;
 }
 
@@ -20,7 +20,7 @@
 .floor {
   position: absolute;
   inset: 0;
-  perspective: 360px;
+  perspective: 480px;
   perspective-origin: 50% 15%;
 }
 
@@ -31,7 +31,7 @@
   bottom: 0;
   height: 300%;
   transform-origin: 50% 100%;
-  transform: rotateX(68deg);
+  transform: rotateX(78deg);
   background-image:
     linear-gradient(to right, #d4d4d4 1px, transparent 1px),
     linear-gradient(to bottom, #d4d4d4 1px, transparent 1px);

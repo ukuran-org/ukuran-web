@@ -87,7 +87,7 @@ export default function SectionTabs() {
       <div
         role="tablist"
         aria-label="Sections"
-        className="flex justify-center gap-2 border-b border-neutral-200"
+        className="flex justify-center gap-2 border-b sm:gap-3 border-neutral-200"
         onKeyDown={handleKeyDown}
       >
         {tabs.map((tab) => {
@@ -109,7 +109,7 @@ export default function SectionTabs() {
               aria-controls={`panel-${tab.id}`}
               tabIndex={isSelected ? 0 : -1}
               onClick={() => selectTab(tab.id)}
-              className="-mb-px cursor-pointer border-b-2 border-transparent px-4 py-3 font-medium text-neutral-500 transition-colors hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black aria-selected:border-black aria-selected:text-black"
+              className="-mb-px cursor-pointer border-b-2 border-transparent px-5 py-4 text-xl font-medium sm:px-6 sm:py-[1.125rem] sm:text-2xl text-neutral-500 transition-colors hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black aria-selected:border-black aria-selected:text-black"
             >
               {tab.label}
             </button>

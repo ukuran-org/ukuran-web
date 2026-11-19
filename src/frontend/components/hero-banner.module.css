@@ -69,3 +69,13 @@
     animation: none;
   }
 }
+
+/* A fixed white fade over the bottom quarter of the banner. The logo floats through it. */
+.fade {
+  position: absolute;
+  z-index: 2;
+  inset: auto 0 0;
+  height: 25%;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0), #fff);
+  pointer-events: none;
+}

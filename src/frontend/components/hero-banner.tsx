@@ -12,6 +12,7 @@ export default function HeroBanner() {
         <div className={styles.logo}>
           <Image src={logo} alt="" preload sizes="520px" />
         </div>
+        <div className={styles.fade} aria-hidden="true" />
       </div>
     </header>
   );

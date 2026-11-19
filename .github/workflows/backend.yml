@@ -1,0 +1,80 @@
+name: Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/backend/**"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect backend app
+    runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # The CI job below is skipped until the Go module has been created.
+      - id: check
+        run: |
+          if [ -f src/backend/go.mod ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::src/backend/go.mod not found, skipping backend checks"
+          fi
+
+  ci:
+    name: Vet, test and build
+    needs: detect
+    if: needs.detect.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: ukuran
+          POSTGRES_PASSWORD: ukuran
+          POSTGRES_DB: ukuran
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ukuran -d ukuran"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: src/backend/go.mod
+          cache-dependency-path: src/backend/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        env:
+          DATABASE_URL: postgres://ukuran:ukuran@localhost:5432/ukuran?sslmode=disable
+        run: go test ./...
+
+      - name: Build
+        run: go build ./...

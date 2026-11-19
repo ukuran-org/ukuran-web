@@ -41,6 +41,24 @@ func TestLoad(t *testing.T) {
 			},
 			want: Config{DatabaseURL: testDatabaseURL, HTTPAddr: ":8081", LogLevel: slog.LevelWarn},
 		},
+		{
+			name: "IPv6 loopback address and error level",
+			env: map[string]string{
+				"DATABASE_URL": testDatabaseURL,
+				"HTTP_ADDR":    "[::1]:8080",
+				"LOG_LEVEL":    "error",
+			},
+			want: Config{DatabaseURL: testDatabaseURL, HTTPAddr: "[::1]:8080", LogLevel: slog.LevelError},
+		},
+		{
+			name: "blank optional values fall back to defaults",
+			env: map[string]string{
+				"DATABASE_URL": testDatabaseURL,
+				"HTTP_ADDR":    "   ",
+				"LOG_LEVEL":    "\t",
+			},
+			want: Config{DatabaseURL: testDatabaseURL, HTTPAddr: ":8080", LogLevel: slog.LevelInfo},
+		},
 	}
 
 	for _, tt := range tests {
@@ -75,6 +93,16 @@ func TestLoadErrors(t *testing.T) {
 		{
 			name:     "address without port",
 			env:      map[string]string{"DATABASE_URL": testDatabaseURL, "HTTP_ADDR": "localhost"},
+			contains: []string{"HTTP_ADDR"},
+		},
+		{
+			name:     "address with a scheme",
+			env:      map[string]string{"DATABASE_URL": testDatabaseURL, "HTTP_ADDR": "http://localhost:8080"},
+			contains: []string{"HTTP_ADDR"},
+		},
+		{
+			name:     "IPv6 address without brackets",
+			env:      map[string]string{"DATABASE_URL": testDatabaseURL, "HTTP_ADDR": "::1:8080"},
 			contains: []string{"HTTP_ADDR"},
 		},
 		{

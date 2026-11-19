@@ -14,6 +14,7 @@ export default function HeroBanner() {
         </div>
         <div className={styles.fade} aria-hidden="true" />
       </div>
+      <h1 className={styles.wordmark}>UKURAN</h1>
     </header>
   );
 }

@@ -79,3 +79,22 @@
   background: linear-gradient(to bottom, rgb(255 255 255 / 0), #fff);
   pointer-events: none;
 }
+
+/*
+ * At 1000 units per em the ink of "UKURAN" runs from x = 44 to x = 4056, so a
+ * font size of logo width / 4.012 makes the ink exactly as wide as the logo.
+ * The negative margin moves the left side bearing out so the ink edges line
+ * up with the logo edges.
+ */
+.wordmark {
+  width: var(--logo-width);
+  margin: 0 auto;
+  font-family: var(--font-wordmark);
+  font-size: calc(var(--logo-width) / 4.012);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-indent: -0.044em;
+  font-kerning: normal;
+}

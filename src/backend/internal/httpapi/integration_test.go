@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/ukuran-org/ukuran-web/src/backend/internal/database"
 	"github.com/ukuran-org/ukuran-web/src/backend/internal/httpapi"
 )
@@ -74,5 +76,35 @@ func TestHealthAgainstPostgres(t *testing.T) {
 	}
 	if body["status"] != "ok" || body["database"] != "ok" {
 		t.Errorf("body = %v, want status and database to be ok", body)
+	}
+}
+
+// TestHealthWithUnreachablePostgres points a real pgx pool at a port where
+// nothing listens, which is what the server sees once Postgres goes down.
+func TestHealthWithUnreachablePostgres(t *testing.T) {
+	pool, err := pgxpool.New(t.Context(), "postgres://ukuran:ukuran@127.0.0.1:1/ukuran?sslmode=disable&connect_timeout=1")
+	if err != nil {
+		t.Fatalf("create pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	server := httptest.NewServer(httpapi.NewHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), pool))
+	t.Cleanup(server.Close)
+
+	resp, err := server.Client().Get(server.URL + "/healthz")
+	if err != nil {
+		t.Fatalf("GET /healthz: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusServiceUnavailable)
+	}
+	var body map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body["status"] != "unavailable" || body["database"] != "unavailable" {
+		t.Errorf("body = %v, want status and database to be unavailable", body)
 	}
 }

@@ -27,6 +27,28 @@ describe("tabFromHash", () => {
     expect(tabFromHash("#")).toBe("apps");
     expect(tabFromHash("#settings")).toBe("apps");
   });
+
+  it("accepts an id without the leading hash", () => {
+    expect(tabFromHash("ask")).toBe("ask");
+  });
+
+  it("matches the id exactly", () => {
+    expect(tabFromHash("#About")).toBe("apps");
+    expect(tabFromHash("#ASK")).toBe("apps");
+    expect(tabFromHash("# about")).toBe("apps");
+    expect(tabFromHash("#about ")).toBe("apps");
+    expect(tabFromHash("#about/extra")).toBe("apps");
+    expect(tabFromHash("#about?x=1")).toBe("apps");
+    expect(tabFromHash("##about")).toBe("apps");
+    expect(tabFromHash("#%61bout")).toBe("apps");
+  });
+
+  it("ignores ids that are not tabs but exist on the page or on objects", () => {
+    expect(tabFromHash("#panel-about")).toBe("apps");
+    expect(tabFromHash("#tab-ask")).toBe("apps");
+    expect(tabFromHash("#constructor")).toBe("apps");
+    expect(tabFromHash("#__proto__")).toBe("apps");
+  });
 });
 
 describe("SectionTabs", () => {
@@ -163,6 +185,68 @@ describe("SectionTabs", () => {
     await user.keyboard("{Home}");
     expectSelected("Apps");
     expect(screen.getByRole("tab", { name: "Apps" })).toHaveFocus();
+  });
+
+  it("ignores keys outside the tabs pattern", async () => {
+    const user = userEvent.setup();
+    render(<SectionTabs />);
+
+    await user.click(screen.getByRole("tab", { name: "Apps" }));
+    await user.keyboard("{ArrowDown}{ArrowUp}{PageDown}{Enter}{ }a");
+
+    expectSelected("Apps");
+    expect(screen.getByRole("tab", { name: "Apps" })).toHaveFocus();
+    expect(window.location.hash).toBe("#apps");
+  });
+
+  it("does not switch tabs on arrow keys pressed inside a panel", async () => {
+    const user = userEvent.setup();
+    setHash("#about");
+    render(<SectionTabs />);
+
+    screen.getByRole("tabpanel", { name: "About" }).focus();
+    await user.keyboard("{ArrowRight}{End}");
+
+    expectSelected("About");
+  });
+
+  it("does not rewrite the URL when the selected tab is clicked again", async () => {
+    const user = userEvent.setup();
+    setHash("#about");
+    render(<SectionTabs />);
+    const replaceState = vi.spyOn(window.history, "replaceState");
+
+    await user.click(screen.getByRole("tab", { name: "About" }));
+
+    expect(replaceState).not.toHaveBeenCalled();
+    expectSelected("About");
+    replaceState.mockRestore();
+  });
+
+  it("keeps several instances in sync", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <SectionTabs />
+        <SectionTabs />
+      </>,
+    );
+
+    await user.click(screen.getAllByRole("tab", { name: "Ask" })[0]);
+
+    for (const tab of screen.getAllByRole("tab", { name: "Ask" })) {
+      expect(tab).toHaveAttribute("aria-selected", "true");
+    }
+  });
+
+  it("stops listening for hash changes after unmounting", () => {
+    const removeListener = vi.spyOn(window, "removeEventListener");
+    const { unmount } = render(<SectionTabs />);
+
+    unmount();
+
+    expect(removeListener).toHaveBeenCalledWith("hashchange", expect.any(Function));
+    removeListener.mockRestore();
   });
 
   it("reaches the active tab with Tab and then the panel", async () => {

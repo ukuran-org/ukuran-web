@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme inline {
+  --font-sans: var(--font-google-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-wordmark: var(--font-sans-ukuran);
+}
+
 html {
   color-scheme: light;
 }
@@ -7,4 +12,5 @@ html {
 body {
   background: #fff;
   color: #000;
+  font-family: var(--font-sans);
 }

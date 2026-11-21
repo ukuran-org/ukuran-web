@@ -31,15 +31,16 @@ test.describe("fonts", () => {
   });
 
   test("set body text in Google Sans and load the faces it uses", async ({ page }) => {
-    await page.goto("/");
+    // The About panel holds the only running text on the page.
+    await page.goto("/#about");
 
     // Plain Google Sans, not Google Sans Flex or Google Sans Code.
-    for (const selector of ["body", "main > p", '[role="tab"]']) {
+    for (const selector of ["body", '[role="tabpanel"]:not([hidden]) p', '[role="tab"]']) {
       expect(await primaryFamily(page, selector), selector).toBe("Google Sans");
     }
 
     const weights = await loadedWeights(page, "Google Sans");
-    // The description uses the regular weight and the tabs the medium one.
+    // Panel text uses the regular weight and the tabs the medium one.
     expect(weights).toContain("400");
     expect(weights).toContain("500");
   });

@@ -1,11 +1,41 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import SectionTabs, { tabFromHash } from "./section-tabs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import SectionTabs, {
+  nextTab,
+  previousTab,
+  slotOf,
+  tabFromHash,
+} from "./section-tabs";
 
 function setHash(hash: string) {
   window.history.replaceState(null, "", hash || window.location.pathname);
+}
+
+// Labels in visual order from left to right, read from each tab's carousel slot.
+function visualOrder() {
+  return screen
+    .getAllByRole("tab")
+    .sort((a, b) => Number(a.dataset.slot) - Number(b.dataset.slot))
+    .map((tab) => tab.textContent);
+}
+
+function stubReducedMotion(reduce: boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      matches: reduce && query === "(prefers-reduced-motion: reduce)",
+      media: query,
+    })),
+  );
+}
+
+// jsdom has no Web Animations API, so record the slides instead.
+function stubAnimate() {
+  const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation);
+  HTMLElement.prototype.animate = animate;
+  return animate;
 }
 
 function expectSelected(label: string) {
@@ -51,9 +81,169 @@ describe("tabFromHash", () => {
   });
 });
 
+describe("carousel order", () => {
+  it("cycles Apps, About, Ask in both directions", () => {
+    expect(nextTab("apps")).toBe("about");
+    expect(nextTab("about")).toBe("ask");
+    expect(nextTab("ask")).toBe("apps");
+    expect(previousTab("apps")).toBe("ask");
+    expect(previousTab("about")).toBe("apps");
+    expect(previousTab("ask")).toBe("about");
+  });
+
+  it("puts the selected tab in the centre, the previous on the left and the next on the right", () => {
+    expect(slotOf("apps", "apps")).toBe(0);
+    expect(slotOf("ask", "apps")).toBe(-1);
+    expect(slotOf("about", "apps")).toBe(1);
+    expect(slotOf("apps", "about")).toBe(-1);
+    expect(slotOf("ask", "about")).toBe(1);
+  });
+});
+
 describe("SectionTabs", () => {
   beforeEach(() => {
     setHash("");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    // @ts-expect-error jsdom has no animate, so the stub is removed again
+    delete HTMLElement.prototype.animate;
+  });
+
+  it("shows Ask, Apps and About from left to right by default", () => {
+    render(<SectionTabs />);
+
+    expect(visualOrder()).toEqual(["Ask", "Apps", "About"]);
+  });
+
+  it("rotates the left tab into the centre when it is clicked", async () => {
+    const user = userEvent.setup();
+    render(<SectionTabs />);
+
+    await user.click(screen.getByRole("tab", { name: "Ask" }));
+
+    expectSelected("Ask");
+    expect(visualOrder()).toEqual(["About", "Ask", "Apps"]);
+    expect(window.location.hash).toBe("#ask");
+  });
+
+  it("rotates the right tab into the centre when it is clicked", async () => {
+    const user = userEvent.setup();
+    render(<SectionTabs />);
+
+    await user.click(screen.getByRole("tab", { name: "About" }));
+
+    expectSelected("About");
+    expect(visualOrder()).toEqual(["Apps", "About", "Ask"]);
+  });
+
+  it("does nothing when the centre tab is clicked", async () => {
+    const user = userEvent.setup();
+    const animate = stubAnimate();
+    stubReducedMotion(false);
+    render(<SectionTabs />);
+
+    await user.click(screen.getByRole("tab", { name: "Apps" }));
+
+    expectSelected("Apps");
+    expect(visualOrder()).toEqual(["Ask", "Apps", "About"]);
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the DOM order fixed while the carousel rotates", async () => {
+    const user = userEvent.setup();
+    render(<SectionTabs />);
+
+    await user.click(screen.getByRole("tab", { name: "Ask" }));
+    await user.click(screen.getByRole("tab", { name: "About" }));
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Apps",
+      "About",
+      "Ask",
+    ]);
+  });
+
+  it("rotates with the arrow keys in the direction pressed", async () => {
+    const user = userEvent.setup();
+    render(<SectionTabs />);
+    screen.getByRole("tab", { name: "Apps" }).focus();
+
+    await user.keyboard("{ArrowLeft}");
+    expect(visualOrder()).toEqual(["About", "Ask", "Apps"]);
+    expect(screen.getByRole("tab", { name: "Ask" })).toHaveFocus();
+
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    expect(visualOrder()).toEqual(["Apps", "About", "Ask"]);
+    expect(screen.getByRole("tab", { name: "About" })).toHaveFocus();
+  });
+
+  it("centres Apps on Home and Ask on End", async () => {
+    const user = userEvent.setup();
+    setHash("#about");
+    render(<SectionTabs />);
+    screen.getByRole("tab", { name: "About" }).focus();
+
+    await user.keyboard("{End}");
+    expect(visualOrder()).toEqual(["About", "Ask", "Apps"]);
+
+    await user.keyboard("{Home}");
+    expect(visualOrder()).toEqual(["Ask", "Apps", "About"]);
+  });
+
+  it("opens a deep link with that tab centred", () => {
+    setHash("#about");
+    render(<SectionTabs />);
+
+    expect(visualOrder()).toEqual(["Apps", "About", "Ask"]);
+  });
+
+  it("slides every tab when a rotation is made with the carousel", async () => {
+    const user = userEvent.setup();
+    const animate = stubAnimate();
+    stubReducedMotion(false);
+    render(<SectionTabs />);
+
+    await user.click(screen.getByRole("tab", { name: "Ask" }));
+
+    expect(animate).toHaveBeenCalledTimes(3);
+    const calls = animate.mock.calls as unknown as [Keyframe[], KeyframeAnimationOptions][];
+    for (const [, options] of calls) {
+      expect(options.duration).toBe(300);
+    }
+    // About leaves on the right and pops in on the left, so only it fades.
+    const fading = calls.filter(([keyframes]) => keyframes.some((frame) => frame.opacity === 0));
+    expect(fading).toHaveLength(1);
+    expect(animate.mock.contexts[calls.indexOf(fading[0])]).toBe(
+      screen.getByRole("tab", { name: "About" }),
+    );
+  });
+
+  it("switches instantly when reduced motion is preferred", async () => {
+    const user = userEvent.setup();
+    const animate = stubAnimate();
+    stubReducedMotion(true);
+    render(<SectionTabs />);
+
+    await user.click(screen.getByRole("tab", { name: "Ask" }));
+
+    expectSelected("Ask");
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it("does not slide when the hash changes outside the carousel", () => {
+    const animate = stubAnimate();
+    stubReducedMotion(false);
+    render(<SectionTabs />);
+
+    act(() => {
+      setHash("#ask");
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+
+    expectSelected("Ask");
+    expect(animate).not.toHaveBeenCalled();
   });
 
   it("renders the tabs in order with Apps selected by default", () => {
@@ -196,7 +386,8 @@ describe("SectionTabs", () => {
 
     expectSelected("Apps");
     expect(screen.getByRole("tab", { name: "Apps" })).toHaveFocus();
-    expect(window.location.hash).toBe("#apps");
+    // Clicking the centre tab leaves the URL alone.
+    expect(window.location.hash).toBe("");
   });
 
   it("does not switch tabs on arrow keys pressed inside a panel", async () => {

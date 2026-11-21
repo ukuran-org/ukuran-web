@@ -1,10 +1,10 @@
 /*
- * The logo width drives the whole hero. The logo keeps the 1.3424 aspect
+ * The logo width drives the whole hero. The logo keeps the 1.3785 aspect
  * ratio of its viewBox and the wordmark scales with it.
  */
 .hero {
   --logo-width: clamp(220px, 42vw, 520px);
-  --logo-height: calc(var(--logo-width) / 1.3424);
+  --logo-height: calc(var(--logo-width) / 1.3785);
 }
 
 .banner {
@@ -12,7 +12,7 @@
   overflow: hidden;
   display: flex;
   justify-content: center;
-  padding-top: calc(var(--logo-height) * 0.12);
+  padding-top: calc(var(--logo-width) * 0.164);
   padding-bottom: 20px;
 }
 
@@ -20,24 +20,10 @@
 .floor {
   position: absolute;
   inset: 0;
-  perspective: 480px;
-  perspective-origin: 50% 15%;
 }
 
-.grid {
-  position: absolute;
-  left: -150%;
-  right: -150%;
-  bottom: 0;
-  height: 300%;
-  transform-origin: 50% 100%;
-  transform: rotateX(78deg);
-  background-image:
-    linear-gradient(to right, #d4d4d4 1px, transparent 1px),
-    linear-gradient(to bottom, #d4d4d4 1px, transparent 1px);
-  background-size: 72px 72px;
-  background-position: center bottom;
-  mask-image: linear-gradient(to top, #000 0%, #000 20%, transparent 60%);
+.floor svg {
+  display: block;
 }
 
 .logo {
@@ -81,20 +67,20 @@
 }
 
 /*
- * At 1000 units per em the ink of "UKURAN" runs from x = 44 to x = 4056, so a
- * font size of logo width / 4.012 makes the ink exactly as wide as the logo.
- * The negative margin moves the left side bearing out so the ink edges line
+ * At 1000 units per em the ink of "UKURAN" runs from x = 16 to x = 4094, so a
+ * font size of logo width / 4.078 makes the ink exactly as wide as the logo.
+ * The negative indent moves the left side bearing out so the ink edges line
  * up with the logo edges.
  */
 .wordmark {
   width: var(--logo-width);
   margin: 0 auto;
   font-family: var(--font-wordmark);
-  font-size: calc(var(--logo-width) / 4.012);
+  font-size: calc(var(--logo-width) / 4.078);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
-  text-indent: -0.044em;
+  text-indent: -0.016em;
   font-kerning: normal;
 }

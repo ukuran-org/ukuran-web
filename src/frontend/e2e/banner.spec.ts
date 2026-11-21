@@ -36,17 +36,16 @@ async function boxesAt(page: Page, time: number) {
 
 test.describe("hero banner", () => {
   test("draw black text on a white page", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#about");
 
     const colours = await page.evaluate(() => {
       const style = getComputedStyle(document.body);
       return { background: style.backgroundColor, text: style.color };
     });
     expect(colours).toEqual({ background: "rgb(255, 255, 255)", text: "rgb(0, 0, 0)" });
-    await expect(page.getByText("Description placeholder.").first()).toHaveCSS(
-      "color",
-      "rgb(0, 0, 0)",
-    );
+    await expect(
+      page.getByRole("tabpanel", { name: "About" }).getByText("Description placeholder."),
+    ).toHaveCSS("color", "rgb(0, 0, 0)");
     await expect(hero(page).wordmark).toHaveCSS("color", "rgb(0, 0, 0)");
   });
 
@@ -212,6 +211,32 @@ test.describe("hero banner", () => {
     // The last row of the banner is pure white, grid included.
     const lastRow = rows[rows.length - 1];
     expect(Math.min(...lastRow)).toBeGreaterThanOrEqual(253);
+  });
+
+  test("draw the floor grid as a decorative SVG with exact, crisp lines", async ({ page }) => {
+    await page.goto("/");
+    const floor = hero(page).banner.locator(":scope > div").first();
+    const svg = floor.locator("svg");
+
+    await expect(floor).toHaveAttribute("aria-hidden", "true");
+    await expect(svg).toHaveAttribute("preserveAspectRatio", "xMidYMid slice");
+    await expect(svg.locator("path")).toHaveAttribute("vector-effect", "non-scaling-stroke");
+    // The floor fills the banner behind the logo.
+    const bannerBox = await box(hero(page).banner);
+    const svgBox = await box(svg);
+    expect(svgBox).toEqual(bannerBox);
+  });
+
+  test("keep the floor low, below the middle of the logo", async ({ page }) => {
+    await page.goto("/");
+    const bannerBox = await box(hero(page).banner);
+    const { logo } = await boxesAt(page, 0);
+    const { rows } = await greyLevels(page, bannerBox);
+
+    // The first row with any grid ink beside the logo is the far edge of the floor.
+    const besideLogo = (row: number[]) => row.slice(0, Math.floor(logo.x) - 10);
+    const farEdge = rows.findIndex((row) => Math.min(...besideLogo(row)) < 253) + bannerBox.y;
+    expect(farEdge).toBeGreaterThan(logo.y + logo.height / 2);
   });
 
   test("fade the grid out as it recedes", async ({ page }) => {

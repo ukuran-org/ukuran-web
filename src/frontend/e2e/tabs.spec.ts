@@ -122,23 +122,196 @@ test.describe("section tabs", () => {
     await expect(tab("Ask")).toBeFocused();
   });
 
-  test("centre the tabs under the description", async ({ page }) => {
+  test("centre the selected tab directly under the wordmark", async ({ page }) => {
     await page.goto("/");
     const viewport = page.viewportSize();
     if (!viewport) {
       throw new Error("the test needs a fixed viewport");
     }
 
-    const tabs = page.getByRole("tab");
-    const first = await tabs.first().boundingBox();
-    const last = await tabs.last().boundingBox();
-    const description = await page.getByText("Description placeholder.").first().boundingBox();
-    if (!first || !last || !description) {
-      throw new Error("tabs and description must be rendered");
+    const selected = await page.getByRole("tab", { selected: true }).boundingBox();
+    const wordmark = await page.getByRole("heading", { level: 1 }).boundingBox();
+    if (!selected || !wordmark) {
+      throw new Error("tabs and wordmark must be rendered");
     }
 
-    const tabsCentre = (first.x + last.x + last.width) / 2;
-    expect(Math.abs(tabsCentre - viewport.width / 2)).toBeLessThanOrEqual(1);
-    expect(first.y).toBeGreaterThan(description.y + description.height);
+    expect(Math.abs(selected.x + selected.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
+    const wordmarkBottom = wordmark.y + wordmark.height;
+    for (const tab of await page.getByRole("tab").all()) {
+      const box = await tab.boundingBox();
+      expect(box?.y).toBeGreaterThan(wordmarkBottom);
+    }
+    // Nothing sits between the wordmark and the tabs any more, so the gap stays modest.
+    expect(selected.y - wordmarkBottom).toBeLessThanOrEqual(48);
+  });
+
+  test("show no description paragraph outside the About panel", async ({ page }) => {
+    await page.goto("/#about");
+
+    await expect(page.getByText("Description placeholder.")).toHaveCount(1);
+    await expect(
+      page.getByRole("tabpanel", { name: "About" }).getByText("Description placeholder."),
+    ).toBeVisible();
   });
 });
+
+// Durations of the slides currently running on the tabs. Colour transitions
+// are CSS transitions and are left out.
+async function tabSlides(page: Page) {
+  return page.evaluate(() =>
+    document
+      .getAnimations()
+      .filter(
+        (animation) =>
+          !(animation instanceof CSSTransition) &&
+          (animation.effect as KeyframeEffect | null)?.target?.matches('[role="tab"]') &&
+          animation.playState === "running",
+      )
+      .map((animation) => animation.effect?.getComputedTiming().duration),
+  );
+}
+
+// Labels from left to right as they appear on screen, once every slide has finished.
+async function visualOrder(page: Page) {
+  await expect.poll(() => tabSlides(page)).toEqual([]);
+  const boxes = await Promise.all(
+    labels.map(async (label) => ({
+      label,
+      box: await page.getByRole("tab", { name: label }).boundingBox(),
+    })),
+  );
+  return boxes
+    .sort((a, b) => (a.box?.x ?? 0) - (b.box?.x ?? 0))
+    .map((entry) => entry.label);
+}
+
+async function renderedHeight(page: Page, label: (typeof labels)[number]) {
+  return page
+    .getByRole("tab", { name: label })
+    .evaluate((tab) => tab.getBoundingClientRect().height);
+}
+
+test.describe("tab carousel", () => {
+  test("show Ask, Apps and About with Apps centred, bigger and darker", async ({ page }) => {
+    await page.goto("/");
+
+    expect(await visualOrder(page)).toEqual(["Ask", "Apps", "About"]);
+    expect(await renderedHeight(page, "Apps")).toBeGreaterThan(
+      await renderedHeight(page, "Ask"),
+    );
+    await expect(page.getByRole("tab", { name: "Apps" })).toHaveCSS("color", "rgb(0, 0, 0)");
+    await expect(page.getByRole("tab", { name: "Ask" })).not.toHaveCSS("color", "rgb(0, 0, 0)");
+    await expect(page.getByRole("tab", { name: "Apps" })).toHaveCSS(
+      "border-bottom-color",
+      "rgb(0, 0, 0)",
+    );
+  });
+
+  test("rotate the left tab into the centre", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByRole("tab", { name: "Ask" }).click();
+
+    await expectSelected(page, "Ask");
+    expect(await visualOrder(page)).toEqual(["About", "Ask", "Apps"]);
+  });
+
+  test("rotate the right tab into the centre", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByRole("tab", { name: "About" }).click();
+
+    await expectSelected(page, "About");
+    expect(await visualOrder(page)).toEqual(["Apps", "About", "Ask"]);
+  });
+
+  test("ignore clicks on the centre tab", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByRole("tab", { name: "Apps" }).click();
+
+    expect(await tabSlides(page)).toEqual([]);
+    expect(await visualOrder(page)).toEqual(["Ask", "Apps", "About"]);
+    await expect(page).toHaveURL(/\/$/);
+  });
+
+  test("rotate with the arrow keys and keep focus on the centre tab", async ({ page }) => {
+    await page.goto("/");
+    await page.keyboard.press("Tab");
+
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByRole("tab", { name: "Ask" })).toBeFocused();
+    expect(await visualOrder(page)).toEqual(["About", "Ask", "Apps"]);
+
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("tab", { name: "About" })).toBeFocused();
+    expect(await visualOrder(page)).toEqual(["Apps", "About", "Ask"]);
+  });
+
+
+  test("open a deep link with that tab centred", async ({ page }) => {
+    await recordSlides(page);
+    await page.goto("/#ask");
+
+    expect(await visualOrder(page)).toEqual(["About", "Ask", "Apps"]);
+    // Opening a deep link does not play a slide.
+    expect(await recordedSlides(page)).toEqual([]);
+  });
+
+  test("slide all three tabs for 300 milliseconds", async ({ page }) => {
+    await recordSlides(page);
+    await page.goto("/");
+
+    await page.getByRole("tab", { name: "Ask" }).click();
+
+    const slides = await recordedSlides(page);
+    expect(slides.map((slide) => slide.duration)).toEqual([300, 300, 300]);
+    // About leaves on the right and pops in on the left, so it is the only one that fades.
+    expect(slides.filter((slide) => slide.fades).map((slide) => slide.label)).toEqual(["About"]);
+    expect(await visualOrder(page)).toEqual(["About", "Ask", "Apps"]);
+  });
+
+  test.describe("with reduced motion", () => {
+    test.use({ reducedMotion: "reduce" });
+
+    test("switch tabs instantly", async ({ page }) => {
+      await recordSlides(page);
+      await page.goto("/");
+
+      await page.getByRole("tab", { name: "Ask" }).click();
+
+      expect(await recordedSlides(page)).toEqual([]);
+      await expect(page.getByRole("tab", { name: "Ask" })).toHaveCSS("transition-property", "none");
+      expect(await visualOrder(page)).toEqual(["About", "Ask", "Apps"]);
+    });
+  });
+});
+
+type RecordedSlide = { label: string; duration: number; fades: boolean };
+
+// Records every animation started on a tab, so short slides cannot finish
+// before the test gets to look at them.
+async function recordSlides(page: Page) {
+  await page.addInitScript(() => {
+    const slides: RecordedSlide[] = [];
+    Object.assign(window, { recordedSlides: slides });
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (keyframes, options) {
+      if (this.matches('[role="tab"]')) {
+        slides.push({
+          label: this.textContent ?? "",
+          duration: typeof options === "number" ? options : Number(options?.duration),
+          fades: Array.isArray(keyframes) && keyframes.some((frame) => frame.opacity === 0),
+        });
+      }
+      return animate.call(this, keyframes, options);
+    };
+  });
+}
+
+async function recordedSlides(page: Page) {
+  return page.evaluate(
+    () => (window as unknown as { recordedSlides: RecordedSlide[] }).recordedSlides,
+  );
+}

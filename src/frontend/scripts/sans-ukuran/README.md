@@ -41,8 +41,12 @@ units and applies the side bearings from the `@glyph` decorator.
 
 - Units per em 1000, cap height 700, x-height 520, ascender 740, descender -200.
 - Only straight lines. Round letters are octagons with diagonal corner cuts.
-- `U` and `u` keep straight sides and then narrow to a near point, so they stay
-  sharp but read differently from `V` and `v`.
+- `U` is drawn like `V`, two straight diagonals meeting in a point. Lowercase
+  `u` keeps straight sides and then narrows to a near point.
+- `R` is the one exception to straight lines: a classic R with a round bowl
+  and the same leg as `K`.
+- `N` is a classic N. Its diagonal runs from the flat top of the left stem to
+  the flat foot of the right stem and joins both flush.
 - `A` has no crossbar.
 - Lowercase letters are single storey.
 

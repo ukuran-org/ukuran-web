@@ -1,12 +1,14 @@
 """Capital letters A to Z.
 
 The capitals follow the logo: inverted triangles, flat horizontal cuts and
-diagonal corner chamfers instead of curves. U narrows to a point and A has
-no crossbar.
+diagonal corner chamfers instead of curves. U is drawn like V, A has no
+crossbar and R is the only capital with a round bowl.
 """
 
+import math
+
 from geometry import (
-    OPEN, arm_and_leg, band, difference, frame, polygon, rect, ring,
+    OPEN, arm_and_leg, band, difference, frame, leg, polygon, rect, ring,
     slanted_width, union,
 )
 from metrics import (
@@ -15,6 +17,10 @@ from metrics import (
 )
 
 MIDDLE = 286  # bottom of the middle bar in B, E, F, H, P, R
+
+# K and R share the same leg.
+K_WIDTH = 630
+K_STROKES = dict(junction=170, thickness=DIAGONAL, leg_start=210)
 
 
 def bowl(x0, y0, x1, y1, **corners):
@@ -33,6 +39,14 @@ def chevron(left, right, top, bottom, thickness=DIAGONAL):
         [(left, top), (middle, bottom), (right, top)],
         [thickness, thickness, OPEN],
     )
+
+
+def half_ellipse(cx, cy, rx, ry, steps=48):
+    """Points on the right half of an ellipse, from its bottom to its top."""
+    return [
+        (cx + rx * math.cos(angle), cy + ry * math.sin(angle))
+        for angle in (-math.pi / 2 + math.pi * i / steps for i in range(steps + 1))
+    ]
 
 
 @glyph("A", left=POINTED_SIDE, right=POINTED_SIDE)
@@ -115,10 +129,9 @@ def capital_j():
 
 @glyph("K", right=POINTED_SIDE)
 def capital_k():
-    width = 630
     return union(
         rect(0, 0, STEM, CAP),
-        arm_and_leg(STEM, width, CAP, junction=170, thickness=DIAGONAL, leg_start=210),
+        arm_and_leg(STEM, K_WIDTH, CAP, **K_STROKES),
     )
 
 
@@ -139,16 +152,18 @@ def capital_m():
 
 @glyph("N")
 def capital_n():
+    # A classic N. The diagonal runs from the flat top of the left stem to
+    # the flat foot of the right stem and joins both flush, so its two edges
+    # start and end exactly at the stem corners.
     width = 630
-    diagonal_width = slanted_width(width - 2 * STEM, CAP, DIAGONAL) + 20
-    return union(
-        rect(0, 0, STEM, CAP),
-        rect(width - STEM, 0, width, CAP),
-        polygon([
-            (0, CAP), (diagonal_width, CAP),
-            (width, 0), (width - diagonal_width, 0),
-        ]),
-    )
+    inner = width - STEM
+    # Heights where the diagonal's edges cross the inner side of each stem.
+    join = CAP * STEM / inner
+    return polygon([
+        (0, 0), (STEM, 0), (STEM, CAP - join), (inner, 0),
+        (width, 0), (width, CAP), (inner, CAP), (inner, join),
+        (STEM, CAP), (0, CAP),
+    ])
 
 
 @glyph("O", left=ANGLED_SIDE, right=ANGLED_SIDE)
@@ -174,11 +189,27 @@ def capital_q():
 
 @glyph("R", right=POINTED_SIDE)
 def capital_r():
-    width = 600
-    top = bowl(0, MIDDLE - 10, 570, CAP, tr=190, br=130)
-    leg_width = slanted_width(width - 340, MIDDLE + 50, DIAGONAL)
-    leg = band(width - leg_width, 0, 340 - leg_width / 2, MIDDLE + 50, leg_width)
-    return union(rect(0, 0, STEM, CAP), top, leg)
+    # A classic R: a round bowl and the leg of K, whose top end hides in the
+    # bowl's lower bar. The bowl is the one curve among the capitals.
+    bowl_bottom = MIDDLE - 30
+    centre_y = (CAP + bowl_bottom) / 2
+    radius = (CAP - bowl_bottom) / 2
+    centre_x = 570 - radius
+    outer = polygon(
+        [(0, bowl_bottom)]
+        + half_ellipse(centre_x, centre_y, radius, radius)
+        + [(0, CAP)]
+    )
+    counter = polygon(
+        [(STEM, bowl_bottom + BAR)]
+        + half_ellipse(centre_x, centre_y, radius - STEM, radius - BAR)
+        + [(STEM, CAP - BAR)]
+    )
+    return union(
+        rect(0, 0, STEM, CAP),
+        difference(outer, counter),
+        leg(STEM, K_WIDTH, CAP, **K_STROKES),
+    )
 
 
 @glyph("S", left=ANGLED_SIDE, right=ANGLED_SIDE)
@@ -199,18 +230,10 @@ def capital_t():
     )
 
 
-@glyph("U", left=44, right=44)
+@glyph("U", left=POINTED_SIDE, right=POINTED_SIDE)
 def capital_u():
-    # Straight sides that narrow into a near point at the baseline, like a
-    # shield. The long straight sides keep it distinct from V.
-    width = 600
-    knee = 260
-    base = 24
-    middle = width / 2
-    return ring(
-        [(0, CAP), (0, knee), (middle - base, 0), (middle + base, 0), (width, knee), (width, CAP)],
-        [STEM, DIAGONAL, BAR, DIAGONAL, STEM, OPEN],
-    )
+    # Drawn like V by choice: two straight diagonals meeting in a point.
+    return capital_v()
 
 
 @glyph("V", left=POINTED_SIDE, right=POINTED_SIDE)

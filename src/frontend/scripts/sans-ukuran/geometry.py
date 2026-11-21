@@ -228,14 +228,22 @@ def arm_and_leg(stem, width, height, junction, thickness, leg_start):
     arm_width = slanted_width(width - stem, rise, thickness)
     arm = band(stem - arm_width, junction, width - arm_width, height, arm_width)
     arm = intersection(arm, rect(0, 0, width, height))
+    return union(arm, leg(stem, width, height, junction, thickness, leg_start))
 
+
+def leg(stem, width, height, junction, thickness, leg_start):
+    """The leg of K and k on its own, so R can share it.
+
+    Takes the same arguments as arm_and_leg.
+    """
+    rise = height - junction
+    arm_width = slanted_width(width - stem, rise, thickness)
     top = junction + leg_start
     arm_left = stem - arm_width + (width - stem) * leg_start / rise
     leg_left = arm_left + 12
     leg_width = slanted_width(width - leg_left, top, thickness)
     leg_width = min(leg_width, arm_width - 24)
-    leg = band(width - leg_width, 0, leg_left, top, leg_width)
-    return union(arm, leg)
+    return band(width - leg_width, 0, leg_left, top, leg_width)
 
 
 def rotated_bar(cx, cy, length, thickness, degrees):

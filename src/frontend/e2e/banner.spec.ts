@@ -188,7 +188,7 @@ test.describe("hero banner", () => {
     expect((await box(wordmark)).y).toBeGreaterThanOrEqual(fadeBox.y + fadeBox.height - 0.5);
   });
 
-  test("fade the logo and the grid into white", async ({ page }) => {
+  test("fade the grid into white but leave the logo solid", async ({ page }) => {
     await page.goto("/");
     const bannerBox = await box(hero(page).banner);
     // Hold the logo at rest, which is also the frame the screenshot uses.
@@ -204,9 +204,9 @@ test.describe("hero banner", () => {
     expect(darkest(aboveFade, logo.x, logo.x + logo.width)).toBeLessThan(40);
     expect(darkest(aboveFade, 0, logo.x - 10)).toBeLessThan(250);
 
-    // Near the bottom of the logo the fade has lightened it a lot.
+    // The fade sits under the logo, so the logo stays solid black down to its point.
     const nearLogoBottom = rowAt(logo.y + logo.height - 6);
-    expect(darkest(nearLogoBottom, logo.x, logo.x + logo.width)).toBeGreaterThan(150);
+    expect(darkest(nearLogoBottom, logo.x, logo.x + logo.width)).toBeLessThan(40);
 
     // The last row of the banner is pure white, grid included.
     const lastRow = rows[rows.length - 1];
